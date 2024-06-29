@@ -43,24 +43,53 @@ def ping(ip, operating_system):
 
 
 # Check if arg is in valid IP address format
-def is_ip_addr(arg):
+def is_format_valid(arg):
     ip = arg.split('.')
+    ranged_value = False # Set to true in the script if there is a range provided
+    values_range = []
 
     if len(ip) < 4:
         return False
     
     for octet in ip:
+        # Handle ranges
+        if '-' in octet:
+            if ip.index(octet) != len(ip)-1:
+                return False
+
+            octet_list = octet.split('-')
+            
+            if len(octet_list) > 2:
+                return False
+
+            for value in octet_list:
+                if not value.isdigit():
+                    return False
+
+                value = int(value)
+
+                if value >= 0 and value <= 255:
+                    values_range.append(value)
+                else:
+                    return False
+            
+            ranged_value = True
+            continue
+
         if octet.isdigit():
             octet = int(octet)
         else:
             return False
-
+        
         if octet >= 0 and octet <= 255:
             continue
         else:
             return False
-
-    return True
+    
+    if ranged_value:
+        return values_range, True
+    else:
+        return False
 
 
 # Print error in the terminal
@@ -105,14 +134,16 @@ def main():
         exit(1)
     
     # Check if positional argument is in IP address format
-    if not is_ip_addr(args.IP_ADDR):
+    if not is_format_valid(args.IP_ADDR):
         error_arg()
         exit(1)
     
     ip = args.IP_ADDR.split('.')
     
+    ranges = is_format_valid(args.IP_ADDR)[0]
+
     # Start a thread for each IP address to ping
-    for i in range(0, 255):
+    for i in range(ranges[0], ranges[1]):
         host = f'{ip[0]}.{ip[1]}.{ip[2]}.{str(i)}'
         t = threading.Thread(target=ping, args=(host, operating_system))
         t.start()
