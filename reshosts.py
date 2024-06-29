@@ -94,10 +94,8 @@ def is_format_valid(arg):
 
 # Print error in the terminal
 def error_arg():
-    error = """You must provide a valid network IP address!
-(e.g: 192.168.1.0 ==> will sort through every IP between 192.168.1.0 to 192.168.1.255)\n
-PLEASE note that the script will only ping through last octet...
-    """
+    error = """The IP address you provided is not valid!
+Please ensure that you follow this format: reshosts 192.168.1.0-100 (last octet only for ranges)"""
 
     print(error)
 
