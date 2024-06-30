@@ -6,6 +6,7 @@ import threading
 import platform
 import socket
 import argparse
+import re
 
 alive_hosts = []
 dead_hosts = []
@@ -44,52 +45,33 @@ def ping(ip, operating_system):
 
 # Check if arg is in valid IP address format
 def is_format_valid(arg):
-    ip = arg.split('.')
+    octets = arg.split('.')
+    ip_pattern = r'^(\d{1,3}\.){3}\d{1,3}(-\d{1,3})?$'
+
     ranged_value = False # Set to true in the script if there is a range provided
     values_range = []
 
-    if len(ip) < 4:
+    if not re.match(ip_pattern, arg):
         return False
     
-    for octet in ip:
-        # Handle ranges
+    for i, octet in enumerate(octets):
         if '-' in octet:
-            if ip.index(octet) != len(ip)-1:
+            if i != 3:
                 return False
 
-            octet_list = octet.split('-')
-            
-            if len(octet_list) > 2:
+            start, end = map(int, octet.split('-'))
+            if not(0 <= start <= end <= 255):
                 return False
-
-            for value in octet_list:
-                if not value.isdigit():
-                    return False
-
-                value = int(value)
-
-                if value >= 0 and value <= 255:
-                    values_range.append(value)
-                else:
-                    return False
             
-            ranged_value = True
-            continue
+            values_range.extend([start, end])
 
-        if octet.isdigit():
-            octet = int(octet)
-        else:
+            return values_range, True
+
+        if not(0 <= int(octet) <= 255):
             return False
         
-        if octet >= 0 and octet <= 255:
-            continue
-        else:
-            return False
-    
-    if ranged_value:
-        return values_range, True
-    else:
-        return False
+    return values_range, True
+
 
 
 # Print error in the terminal
@@ -138,18 +120,22 @@ def main():
     
     ip = args.IP_ADDR.split('.')
     
-    ranges = is_format_valid(args.IP_ADDR)[0]
+    try:
+        ranges = is_format_valid(args.IP_ADDR)[0]
 
-    # Start a thread for each IP address to ping
-    for i in range(ranges[0], ranges[1]):
-        host = f'{ip[0]}.{ip[1]}.{ip[2]}.{str(i)}'
-        t = threading.Thread(target=ping, args=(host, operating_system))
-        t.start()
-        threads_list.append(t)
+        # Start a thread for each IP address to ping
+        for i in range(ranges[0], ranges[1]):
+            host = f'{ip[0]}.{ip[1]}.{ip[2]}.{str(i)}'
+            t = threading.Thread(target=ping, args=(host, operating_system))
+            t.start()
+            threads_list.append(t)
 
-    # Very important to avoid showing results before every thread finishes its execution
-    for t in threads_list:
-        t.join()
+        # Very important to avoid showing results before every thread finishes its execution
+        for t in threads_list:
+            t.join()
+
+    except Exception as e:
+        ping(args.IP_ADDR, operating_system)
     
     # Show the results!
     results()
