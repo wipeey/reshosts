@@ -83,7 +83,7 @@ Please ensure that you follow this format: reshosts 192.168.1.0-100 (last octet 
 
 
 # Print the results from the scan
-def results():
+def results(total_hosts: str) -> str:
     result = "\nALIVE HOSTS:\n"
     
     # Handle proper syntax
@@ -97,13 +97,14 @@ def results():
             result += f'{host}, {hostname}\n'
     else:
         result += 'None\n'
-        
-    result += f'\nDEAD HOSTS:\n{str(len(dead_hosts))}'
-        
-    print(result)
 
-    
-def main():
+    total_dead_hosts = str(len(dead_hosts))
+    result += f'\nDEAD HOSTS:\n{total_dead_hosts} out of {str(total_hosts)}'
+        
+    return result 
+
+        
+if __name__ == '__main__':
     operating_system = platform.system()   
     threads_list = []
     supported_os = ['Windows', 'Linux']
@@ -137,9 +138,6 @@ def main():
     except Exception as e:
         ping(args.IP_ADDR, operating_system)
     
-    # Show the results!
-    results()
-    
-    
-if __name__ == '__main__':
-    main()
+    # Print the results!
+    total_check_hosts = str(ranges[1])
+    print(results(total_check_hosts))
