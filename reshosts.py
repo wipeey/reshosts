@@ -99,7 +99,7 @@ def results(total_hosts: str) -> str:
         result += 'None\n'
 
     total_dead_hosts = str(len(dead_hosts))
-    result += f'\nDEAD HOSTS:\n{total_dead_hosts} out of {str(total_hosts)}'
+    result += f'\nDEAD HOSTS:\n{total_dead_hosts} out of {total_hosts}'
         
     return result 
 
