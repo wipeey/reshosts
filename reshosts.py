@@ -7,6 +7,7 @@ import platform
 import socket
 import argparse
 import re
+from datetime import date, datetime
 
 alive_hosts = []
 dead_hosts = []
@@ -98,6 +99,7 @@ def results(total_hosts: str) -> str:
     else:
         result += 'None\n'
 
+
     total_dead_hosts = str(len(dead_hosts))
     result += f'\nDEAD HOSTS:\n{total_dead_hosts} out of {total_hosts}'
         
@@ -120,10 +122,21 @@ if __name__ == '__main__':
         exit(1)
     
     ip = args.IP_ADDR.split('.')
-    
-    try:
-        ranges = is_format_valid(args.IP_ADDR)[0]
 
+    ranges = is_format_valid(args.IP_ADDR)[0]
+
+    ip_is_ranged = True if len(ranges) > 1 else False
+    
+    current_time_date = datetime.now().strftime("%H:%M:%S") + " " + str(date.today())
+
+    if ip_is_ranged:
+        ip_info = f'from {ip[0]}.{ip[1]}.{ip[2]}.{ranges[0]} to {ip[0]}.{ip[1]}.{ip[2]}.{ranges[1]}'
+    else:
+        ip_info = f'on {args.IP_ADDR}'
+    
+    print(f'Starting reshosts {ip_info} at {current_time_date}')
+    
+    try:        
         # Start a thread for each IP address to ping
         for i in range(ranges[0], ranges[1]):
             host = f'{ip[0]}.{ip[1]}.{ip[2]}.{str(i)}'
@@ -139,5 +152,5 @@ if __name__ == '__main__':
         ping(args.IP_ADDR, operating_system)
     
     # Print the results!
-    total_check_hosts = str(ranges[1])
+    total_check_hosts = str(ranges[1] - ranges[0]) if ip_is_ranged else "1"
     print(results(total_check_hosts))
