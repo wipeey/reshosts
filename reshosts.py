@@ -27,7 +27,7 @@ def log(data):
         print(data)
 
 
-def get_ms(cmd, os):
+def get_ms(cmd):
     match = re.search(r'time[=<]([\d.]+)', cmd.stdout)
         
     if match:
@@ -57,7 +57,7 @@ def ping(ip, operating_system):
 
     # Check if host is up
     if response.returncode == 0:
-        ms = get_ms(response, operating_system)
+        ms = get_ms(response)
         alive_hosts[ip] = ms
         
         log(f'{ip} is up!')
