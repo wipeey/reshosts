@@ -1,7 +1,8 @@
 #!/bin/python3
 
 import sys
-import os
+#import os
+import subprocess
 import threading
 import platform
 import socket
@@ -9,14 +10,15 @@ import argparse
 import re
 from datetime import date, datetime
 
-alive_hosts = []
+alive_hosts = {}
 dead_hosts = []
 
 #Arguments handling
 parser = argparse.ArgumentParser()
 
 parser.add_argument('IP_ADDR') # Positional argument
-parser.add_argument('-v', '--verbose', action='store_true')
+parser.add_argument('-v', '--verbose', action='store_true', help="provide more detailed information during execution")
+parser.add_argument('-m', '--ms', action='store_true', help="display ping times in milliseconds")
 
 args = parser.parse_args()
 
@@ -25,19 +27,39 @@ def log(data):
         print(data)
 
 
+def get_ms(cmd, os):
+    match = re.search(r'time[=<]([\d.]+)', cmd.stdout)
+        
+    if match:
+        return match.group(1)
+
+    return 'Unknown'
+
+
 # Ping a targeted IP address
 def ping(ip, operating_system):
     # Execute command for each thread depending on the operating system...
     if operating_system == 'Linux':
-        response = os.system(f'ping -c 1 -w 5 {ip} > /dev/null 2>&1') # Linux command
+        try:
+            # Linux command
+            response = subprocess.run(['ping', '-c', '1', '-w', '5', ip], capture_output=True, text=True)
+        except Exception as e:
+            print(e)            
+
     else:
-        response = os.system(f'ping -c 1 -w 5 {ip} | find "TTL" > nul') # Windows command
+        try:
+            # Windows command
+            response = subprocess.run('ping -n 1 -w 5000 ' + ip + ' | find "TTL"', capture_output=True, text=True, shell=True)
+        except Exception as e:
+            print(e)
 
     log(f'Currently checking host {ip}')
 
     # Check if host is up
-    if response == 0:
-        alive_hosts.append(ip)
+    if response.returncode == 0:
+        ms = get_ms(response, operating_system)
+        alive_hosts[ip] = ms
+        
         log(f'{ip} is up!')
     else:
         dead_hosts.append(ip)
@@ -87,19 +109,22 @@ Please ensure that you follow this format: reshosts 192.168.1.0-100 (last octet 
 def results(total_hosts: str) -> str:
     result = "\nALIVE HOSTS:\n"
     
-    # Handle proper syntax
+    # Fetch IP's hostname
     if alive_hosts:
-        for host in alive_hosts:
+        for host in alive_hosts.keys():
             try:
                 hostname = socket.gethostbyaddr(host)[0]
             except Exception as e:
                 hostname = "Unknown host"
 
-            result += f'{host}, {hostname}\n'
+            # Format the result depending on args passed by the user
+            result += f'{host}, {hostname}'
+            if args.ms: result += f' ({alive_hosts[host]} ms)'
+            result += '\n'
     else:
         result += 'None\n'
 
-
+    # Print amount of dead hosts out of all the hosts checked
     total_dead_hosts = str(len(dead_hosts))
     result += f'\nDEAD HOSTS:\n{total_dead_hosts} out of {total_hosts}'
         
@@ -120,17 +145,24 @@ if __name__ == '__main__':
     if not is_format_valid(args.IP_ADDR):
         error_arg()
         exit(1)
-    
+
+    # Converting the IP address into a list
     ip = args.IP_ADDR.split('.')
 
+    # Fetching the ranges from the last octet
     ranges = is_format_valid(args.IP_ADDR)[0]
 
+    # Check if the IP is ranged (X.X.X.X-X)
     ip_is_ranged = True if len(ranges) > 1 else False
-    
+
+    # Getting the current date (Hour, Minute, Seconds and Day, Month, Year)
     current_time_date = datetime.now().strftime("%H:%M:%S") + " " + str(date.today())
 
     if ip_is_ranged:
-        ip_info = f'from {ip[0]}.{ip[1]}.{ip[2]}.{ranges[0]} to {ip[0]}.{ip[1]}.{ip[2]}.{ranges[1]}'
+        first_ip = ip[0] + '.' + ip[1] + '.' + ip[2] + '.' + str(ranges[0])
+        last_ip = ip[0] + '.' + ip[1] + '.' + ip[2] + '.' + str(ranges[1])
+        
+        ip_info = f'from {first_ip} to {last_ip}'
     else:
         ip_info = f'on {args.IP_ADDR}'
     
@@ -147,7 +179,6 @@ if __name__ == '__main__':
         # Very important to avoid showing results before every thread finishes its execution
         for t in threads_list:
             t.join()
-
     except Exception as e:
         ping(args.IP_ADDR, operating_system)
     
